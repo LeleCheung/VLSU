@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import VParams._
 
+// split uop-level memory access into hbl2-level access
 class VLsuBlock extends Module {
   val io = IO(new Bundle {
     val ctrl = new Bundle {

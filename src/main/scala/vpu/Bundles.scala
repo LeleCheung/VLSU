@@ -200,3 +200,60 @@ class VL2StoreReq extends Bundle {
 class VL2StoreAck extends Bundle {
   val dummy = Bool()
 }
+
+trait AMUParameter {
+  val pAddrBits: Int = 64 // address bits
+
+  // Channel A: ST 32B
+  val aPutBits: Int = 256 // 32B
+  val aPutBytes: Int = aPutBits / 8 
+
+  // Channel M: LD 64B
+  val mGetBits: Int = 512 // 64B
+  val mGetBytes: Int = mGetBits / 8
+
+  // Channel D: data not used
+  val dAckBits: Int = 256 // 32B
+  val dAckBytes: Int = dAckBits / 8
+
+}
+
+class AMUBundle extends Bundle with AMUParameter
+
+class TL_A extends AMUBundle {
+  val a_opcode      = Output(UInt(4.W))          
+  val a_param       = Output(UInt(3.W))          /* not used */
+  val a_size        = Output(UInt(3.W))          
+  val a_source      = Output(UInt(5.W))  
+  val a_address     = Output(UInt(pAddrBits.W)) 
+  val a_user_matrix = Output(UInt(2.W))    
+  val a_mask        = Output(UInt(32.W))         /* not used */
+  val a_data        = Output(UInt(aPutBits.W))   
+  val a_corrupt     = Output(UInt(1.W))          /* not used */
+}
+
+class TL_D extends AMUBundle {
+  val d_opcode      = Input(UInt(4.W))          
+  val d_param       = Input(UInt(3.W))          /* not used */
+  val d_size        = Input(UInt(3.W))          /* not used */
+  val d_source      = Input(UInt(5.W))          
+  val d_sink        = Input(UInt(11.W))         /* not used */
+  val d_denied      = Input(UInt(1.W))          /* not used */
+  val d_data        = Input(UInt(dAckBits.W))   /* not used !!! */
+  val d_corrupt     = Input(UInt(1.W))          /* not used */
+}
+
+class TL_M extends AMUBundle {
+  val m_source      = Input(UInt(5.W))  
+  val m_data        = Input(UInt(mGetBits.W))   
+}
+
+class TLink extends Bundle {
+  val a = DecoupledIO(new TL_A) // Channel A: Store/Load Request
+  val d = Flipped(DecoupledIO(new TL_D)) // Channel D: Store/Load Response
+  val m = Flipped(DecoupledIO(new TL_M)) // Channel M: Load Data
+}
+
+class TL extends Bundle {
+  val tlink = Vec(8, new TLink) // 8 banks, 8 links
+}

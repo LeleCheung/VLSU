@@ -90,6 +90,9 @@ test:
 vpu-debug:
 	mill YunSuan.runMain race.vpu.debug.VerilogVTopDebug
 
+vpu:
+	mill YunSuan.runMain race.vpu.VerilogVTop
+
 unit-test:
 	make emu
 	./build/emu -O 10

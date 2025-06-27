@@ -4,21 +4,19 @@ import chisel3._
 import chisel3.util._
 import VParams._
 
+// TODO: new VTop or modify the old one?
+
 class VTop extends Module {
   val io = IO(new Bundle {
     val dispatch_s2v = Flipped(DecoupledIO(new Dispatch_S2V))
-    val l2 = new Bundle {
-      val loadReq = DecoupledIO(new VL2LoadReq)
-      val loadRsp = Input(ValidIO(new VL2LoadRsp))
-      val storeReq = DecoupledIO(new VL2StoreReq)
-      val storeAck = Input(ValidIO(new VL2StoreAck))
-    }
+    val tl = new TL // TileLink interface
     val debugRob = Option.when(debugMode)(Output(new FromCtrlToDebugRob))
   })
 
   val vCtrlBlock = Module(new VCtrlBlock)
   val vExuBlock = Module(new VExuBlock)
   val vLsuBlock = Module(new VLsuBlock)
+  val vLsu = Module(new VLsu)
 
   vCtrlBlock.io.dispatch_s2v <> io.dispatch_s2v
 
@@ -27,7 +25,8 @@ class VTop extends Module {
 
   vCtrlBlock.io.lsu <> vLsuBlock.io.ctrl
   
-  vLsuBlock.io.l2 <> io.l2
+  vLsuBlock.io.l2 <> vLsu.io.l2
+  vLsu.io.tl <> io.tl
 
   if (debugMode) {
     io.debugRob.get := vCtrlBlock.io.debugRob.get
