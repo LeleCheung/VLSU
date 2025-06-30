@@ -215,7 +215,6 @@ trait AMUParameter {
   // Channel D: data not used
   val dAckBits: Int = 256 // 32B
   val dAckBytes: Int = dAckBits / 8
-
 }
 
 class AMUBundle extends Bundle with AMUParameter

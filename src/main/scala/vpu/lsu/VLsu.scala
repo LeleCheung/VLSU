@@ -30,12 +30,11 @@ class VLsu extends Module {
     val tl = new TL // TileLink interface
   })
 
-
-
+  // initialization
   for (i <- 0 until 8) {
-    // Default values for A-channel
+    // channel A
     io.tl.tlink(i).a.valid := false.B
-    io.tl.tlink(i).a.bits.a_opcode := 0.U // Or a suitable idle opcode if TL has one
+    io.tl.tlink(i).a.bits.a_opcode := 0.U // TODO: TL idle opcode?
     io.tl.tlink(i).a.bits.a_param := 0.U
     io.tl.tlink(i).a.bits.a_size := 0.U
     io.tl.tlink(i).a.bits.a_source := 0.U
@@ -43,37 +42,47 @@ class VLsu extends Module {
     io.tl.tlink(i).a.bits.a_user_matrix := 0.U
     io.tl.tlink(i).a.bits.a_mask := 0.U
     io.tl.tlink(i).a.bits.a_data := 0.U
-    io.tl.tlink(i).a.bits.a_corrupt := false.B // Use false.B for boolean
+    io.tl.tlink(i).a.bits.a_corrupt := false.B 
 
-    // Set D-channel ready (receiver side)
-    io.tl.tlink(i).d.ready := false.B // Assuming D channel is not used for load/store responses directly in this simplified snippet
-    // M-channel ready for responses (receiver side)
-    io.tl.tlink(i).m.ready := true.B // Always ready to receive responses
+    // channel D
+    io.tl.tlink(i).d.ready := false.B 
 
-
+    // channel M
+    io.tl.tlink(i).m.ready := true.B // Always ready to receive load data
   }
 
   for (i <- 0 until nPortsL2) {
-    io.l2.storeAck.bits.dummy := false.B // Dummy response for store acknowledgment
-    io.l2.storeAck.valid := false.B // Store acknowledgment is not valid by default
-    io.l2.loadReq.ready := false.B // Load request is not ready by default
-    io.l2.storeReq.ready := false.B // Store request is not ready by default
-    // If loadReq is valid, then drive the A-channel with load request details
+    // load request: channel A
+    // VLsuBlock --> VLsu
+    io.l2.loadReq.ready := true.B // Always ready to accept load requests from VLsuBlock
+    // VLsu --> HBL2
     when (io.l2.loadReq.valid) {
-      io.tl.tlink(i).a.valid          := true.B // Set valid for the active request
-      io.tl.tlink(i).a.bits.a_opcode  := 4.U // TLMessages.Get
-      io.tl.tlink(i).a.bits.a_param   := 0.U
-      io.tl.tlink(i).a.bits.a_size    := 6.U // 64B
-      io.tl.tlink(i).a.bits.a_source  := i.U // TODO: Ensure unique source IDs if multiple requests can be outstanding
-      io.tl.tlink(i).a.bits.a_address := io.l2.loadReq.bits.addr(i)
+      io.tl.tlink(i).a.valid              := true.B // Set valid for the active request
+      io.tl.tlink(i).a.bits.a_opcode      := 4.U // TLMessages.Get
+      io.tl.tlink(i).a.bits.a_param       := 0.U
+      io.tl.tlink(i).a.bits.a_size        := 6.U // 64B
+      io.tl.tlink(i).a.bits.a_source      := i.U // TODO: Ensure unique source IDs if multiple requests can be outstanding
+      io.tl.tlink(i).a.bits.a_address     := io.l2.loadReq.bits.addr(i)
       io.tl.tlink(i).a.bits.a_user_matrix := 0.U // vec, not matrix
-      io.tl.tlink(i).a.bits.a_mask    := 0.U
-      io.tl.tlink(i).a.bits.a_data    := 0.U // Only used for store
-      io.tl.tlink(i).a.bits.a_corrupt := false.B
+      io.tl.tlink(i).a.bits.a_mask        := 0.U
+      io.tl.tlink(i).a.bits.a_data        := 0.U // Only used for store
+      io.tl.tlink(i).a.bits.a_corrupt     := false.B
     }
-    io.tl.tlink(i).m.ready              := true.B // receiver side
+
+    // load response: channel M
+    // HBL2 --> VLsu
+    io.tl.tlink(i).m.ready              := true.B // Always ready to accept load data from L2
+    // VLsu --> VLsuBlock
     io.l2.loadRsp.valid                 := io.tl.tlink(i).m.valid
     io.l2.loadRsp.bits.data(i)          := io.tl.tlink(i).m.bits.m_data // Load data
+
+    // TODO: store request: channel A
+    io.l2.storeReq.ready := false.B 
+
+    // TODO: store response: channel D
+    io.l2.storeAck.bits.dummy := false.B 
+    io.l2.storeAck.valid := false.B 
+
   }
 
   // TODO: support consecutive load requests, so we need to buffer (source, data) pairs
